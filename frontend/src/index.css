@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+@import './styles/themes.css';
+
+/*
+ * Les couleurs sémantiques (app, surface, border, text, ...) sont déclarées
+ * dans ./styles/themes.css sous forme de variables CSS par thème
+ * ([data-theme="clair"], [data-theme="sombre"], ...), puis exposées ici comme
+ * couleurs Tailwind afin de générer les utilitaires bg-app, text-heading, etc.
+ * Ajouter un thème = ajouter un bloc [data-theme="..."] dans themes.css,
+ * aucune classe de composant n'a besoin d'être modifiée.
+ */
+@theme inline {
+  --color-app: var(--theme-app);
+  --color-surface: var(--theme-surface);
+  --color-surface-muted: var(--theme-surface-muted);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-subtle: var(--theme-border-subtle);
+  --color-heading: var(--theme-text-heading);
+  --color-body: var(--theme-text-body);
+  --color-muted: var(--theme-text-muted);
+  --color-faint: var(--theme-text-faint);
+  --color-overlay: var(--theme-overlay);
+
+  --color-success-soft: var(--theme-success-soft-bg);
+  --color-success-soft-text: var(--theme-success-soft-text);
+  --color-success-strong: var(--theme-success-strong-bg);
+  --color-success-strong-hover: var(--theme-success-strong-bg-hover);
+  --color-danger-soft: var(--theme-danger-soft-bg);
+  --color-danger-soft-text: var(--theme-danger-soft-text);
+  --color-danger-soft-border: var(--theme-danger-soft-border);
+  --color-danger-strong: var(--theme-danger-strong-bg);
+  --color-danger-strong-hover: var(--theme-danger-strong-bg-hover);
+  --color-info-soft: var(--theme-info-soft-bg);
+  --color-info-soft-text: var(--theme-info-soft-text);
+  --color-warning-soft: var(--theme-warning-soft-bg);
+  --color-warning-soft-text: var(--theme-warning-soft-text);
+  --color-warning-soft-border: var(--theme-warning-soft-border);
+  --color-accent-soft: var(--theme-accent-soft-bg);
+  --color-accent-soft-text: var(--theme-accent-soft-text);
+
+  --color-chart-1: var(--theme-chart-1);
+  --color-chart-2: var(--theme-chart-2);
+  --color-chart-3: var(--theme-chart-3);
+  --color-chart-4: var(--theme-chart-4);
+  --color-chart-5: var(--theme-chart-5);
+  --color-chart-6: var(--theme-chart-6);
+  --color-chart-grid: var(--theme-chart-grid);
+}
+
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  color: var(--theme-text-body);
+  background: var(--theme-app);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}

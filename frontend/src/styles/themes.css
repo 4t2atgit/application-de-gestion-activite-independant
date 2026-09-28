@@ -1,0 +1,102 @@
+/*
+ * Palette de chaque thème, sous forme de variables CSS portées par
+ * l'attribut data-theme sur <html>. Pour ajouter un nouveau thème :
+ * 1. déclarer un bloc [data-theme="mon-theme"] ci-dessous avec les mêmes
+ *    variables --theme-* que les thèmes existants ;
+ * 2. l'enregistrer dans frontend/src/theme/themes.ts (id + libellé).
+ * Aucun composant n'a besoin d'être modifié : ils consomment uniquement les
+ * classes Tailwind sémantiques (bg-app, bg-surface, text-heading, ...) qui
+ * lisent ces variables.
+ */
+
+[data-theme='clair'] {
+  --theme-app: #f1f5f9;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f8fafc;
+  --theme-surface-hover: #e2e8f0;
+  --theme-border-subtle: #e2e8f0;
+  --theme-text-heading: #0f172a;
+  --theme-text-body: #334155;
+  --theme-text-muted: #64748b;
+  --theme-text-faint: #94a3b8;
+  --theme-overlay: rgb(2 6 23 / 45%);
+
+  /*
+   * Couleurs d'action/statut : versions « soft » (badges, boutons icône) et
+   * « strong » (boutons pleins) déclinées par teinte sémantique (succès,
+   * danger, information, avertissement, accent). En thème clair : fonds
+   * pastel + texte foncé, conforme aux habitudes Tailwind classiques.
+   */
+  --theme-success-soft-bg: #d1fae5;
+  --theme-success-soft-text: #065f46;
+  --theme-success-strong-bg: #10b981;
+  --theme-success-strong-bg-hover: #059669;
+  --theme-danger-soft-bg: #ffe4e6;
+  --theme-danger-soft-text: #9f1239;
+  --theme-danger-soft-border: #fecdd3;
+  --theme-danger-strong-bg: #e11d48;
+  --theme-danger-strong-bg-hover: #be123c;
+  --theme-info-soft-bg: #e0f2fe;
+  --theme-info-soft-text: #075985;
+  --theme-warning-soft-bg: #fffbeb;
+  --theme-warning-soft-text: #92400e;
+  --theme-warning-soft-border: #fde68a;
+  --theme-accent-soft-bg: #e0e7ff;
+  --theme-accent-soft-text: #3730a3;
+
+  /* Palette qualitative pour les graphiques (courbes, secteurs). */
+  --theme-chart-1: #10b981;
+  --theme-chart-2: #0ea5e9;
+  --theme-chart-3: #6366f1;
+  --theme-chart-4: #f59e0b;
+  --theme-chart-5: #f43f5e;
+  --theme-chart-6: #8b5cf6;
+  --theme-chart-grid: #e2e8f0;
+}
+
+[data-theme='sombre'] {
+  --theme-app: #0f172a;
+  --theme-surface: #1e293b;
+  --theme-surface-muted: #172033;
+  --theme-surface-hover: #334155;
+  --theme-border-subtle: #334155;
+  --theme-text-heading: #f1f5f9;
+  --theme-text-body: #cbd5e1;
+  --theme-text-muted: #94a3b8;
+  --theme-text-faint: #64748b;
+  --theme-overlay: rgb(0 0 0 / 60%);
+
+  /*
+   * En thème sombre, les couleurs saturées « vibrent » et fatiguent l'œil sur
+   * fond foncé (recommandation Material Design dark theme) : les fonds
+   * « soft » utilisent donc la teinte en transparence plutôt qu'un pastel
+   * plein, et le texte associé est éclairci (300) pour rester lisible
+   * (contraste ≥ 4.5:1 sur --theme-surface) sans être criard. Les boutons
+   * pleins restent identifiables mais légèrement moins lumineux qu'en clair.
+   */
+  --theme-success-soft-bg: rgb(16 185 129 / 16%);
+  --theme-success-soft-text: #6ee7b7;
+  --theme-success-strong-bg: #059669;
+  --theme-success-strong-bg-hover: #10b981;
+  --theme-danger-soft-bg: rgb(244 63 94 / 16%);
+  --theme-danger-soft-text: #fda4af;
+  --theme-danger-soft-border: rgb(244 63 94 / 35%);
+  --theme-danger-strong-bg: #be123c;
+  --theme-danger-strong-bg-hover: #e11d48;
+  --theme-info-soft-bg: rgb(14 165 233 / 16%);
+  --theme-info-soft-text: #7dd3fc;
+  --theme-warning-soft-bg: rgb(245 158 11 / 16%);
+  --theme-warning-soft-text: #fcd34d;
+  --theme-warning-soft-border: rgb(245 158 11 / 35%);
+  --theme-accent-soft-bg: rgb(99 102 241 / 18%);
+  --theme-accent-soft-text: #a5b4fc;
+
+  /* Mêmes teintes, éclaircies (400) pour rester lisibles sur fond sombre. */
+  --theme-chart-1: #34d399;
+  --theme-chart-2: #38bdf8;
+  --theme-chart-3: #818cf8;
+  --theme-chart-4: #fbbf24;
+  --theme-chart-5: #fb7185;
+  --theme-chart-6: #a78bfa;
+  --theme-chart-grid: #334155;
+}

@@ -1,0 +1,29 @@
+{
+  "name": "micro-entreprise-suivi",
+  "version": "1.0.0",
+  "description": "Application locale de suivi d'activit\u00e9 pour micro-entreprise (d\u00e9veloppeur ind\u00e9pendant) - persistance en fichiers CSV",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm --workspace backend run test",
+    "dev": "concurrently \"npm --workspace backend run dev\" \"npm --workspace frontend run dev -- --host 0.0.0.0\"",
+    "build": "npm --workspace backend run build && npm --workspace frontend run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4t2atgit/application-de-gestion-activite-independant.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
