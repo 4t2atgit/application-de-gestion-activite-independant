@@ -19,10 +19,77 @@
             color: #fff;
             overflow: hidden;
         }
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            height: calc(100vh - 150px);
+            gap: 0;
+        }
         #canvas {
-            width: 100%;
-            height: calc(100vh - 200px);
+            flex: 1;
             display: block;
+            height: 100%;
+        }
+        .sidebar {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(100, 200, 255, 0.3);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(100, 200, 255, 0.3);
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 200, 255, 0.5);
+        }
+        .info-panel {
+            background: rgba(20, 30, 60, 0.8);
+            border: 1px solid rgba(100, 200, 255, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 150px;
+        }
+        .cell-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #64c8ff;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+        }
+        .cell-methods {
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.8;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .method-item {
+            padding: 6px 10px;
+            background: rgba(100, 200, 255, 0.1);
+            border-left: 2px solid rgba(100, 200, 255, 0.4);
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d4e8ff;
+        }
+        .empty-state {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 30px 10px;
         }
         .header {
             padding: 20px;
@@ -103,27 +170,6 @@
             margin-right: 4px;
             vertical-align: middle;
         }
-        .info-panel {
-            padding: 12px 20px;
-            background: rgba(0, 0, 0, 0.2);
-            border-top: 1px solid rgba(100, 200, 255, 0.3);
-            font-size: 12px;
-            color: #aaa;
-            max-height: 40px;
-            overflow-y: auto;
-        }
-        .cell-info {
-            display: inline-block;
-            margin-right: 30px;
-        }
-        .cell-name {
-            color: #64c8ff;
-            font-weight: bold;
-        }
-        .cell-methods {
-            color: #888;
-            font-size: 11px;
-        }
     </style>
 </head>
 <body>
@@ -132,7 +178,17 @@
         <p>Visualisation 3D interactive du système biologique de gestion d'activité indépendant</p>
     </div>
     
-    <canvas id="canvas"></canvas>
+    <div class="main-container">
+        <canvas id="canvas"></canvas>
+        
+        <div class="sidebar">
+            <div class="info-panel">
+                <div id="infoPanel">
+                    <div class="empty-state">👁️ Survolez une cellule pour voir ses méthodes publiques</div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="controls">
         <div class="control-item">
@@ -166,8 +222,6 @@
         </div>
     </div>
 
-    <div class="info-panel" id="infoPanel"></div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // Public methods for each entity/service
@@ -192,10 +246,10 @@
 
         // Scene setup
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 200), 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 320) / (window.innerHeight - 150), 0.1, 10000);
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true, alpha: true });
         
-        renderer.setSize(window.innerWidth, window.innerHeight - 200);
+        renderer.setSize(window.innerWidth - 320, window.innerHeight - 150);
         renderer.setClearColor(0x0a0e27, 1);
         renderer.shadowMap.enabled = true;
         
@@ -354,8 +408,18 @@
         const infoPanel = document.getElementById('infoPanel');
         
         window.addEventListener('mousemove', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -((e.clientY - 200) / (window.innerHeight - 200)) * 2 + 1;
+            const canvasLeft = window.innerWidth - 320;
+            if (e.clientX > canvasLeft) {
+                // Hovering over sidebar
+                cellMeshes.forEach(cell => {
+                    cell.material.emissiveIntensity = 0.3;
+                    cell.scale.set(1, 1, 1);
+                });
+                return;
+            }
+            
+            mouse.x = (e.clientX / canvasLeft) * 2 - 1;
+            mouse.y = -((e.clientY - 150) / (window.innerHeight - 150)) * 2 + 1;
             
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(cellMeshes);
@@ -364,8 +428,6 @@
                 cell.material.emissiveIntensity = 0.3;
                 cell.scale.set(1, 1, 1);
             });
-            
-            infoPanel.innerHTML = '';
             
             if (intersects.length > 0) {
                 hoveredCell = intersects[0].object;
@@ -376,23 +438,24 @@
                 const methods = publicMethods[cellName] || [];
                 
                 if (methods.length > 0) {
-                    let html = `<div class="cell-info">
-                        <span class="cell-name">${cellName}</span>
+                    let html = `
+                        <div class="cell-name">${cellName}</div>
                         <div class="cell-methods">
-                            ${methods.join(' • ')}
+                            ${methods.map(method => `<div class="method-item">${method}</div>`).join('')}
                         </div>
-                    </div>`;
+                    `;
                     infoPanel.innerHTML = html;
                 }
             } else {
                 hoveredCell = null;
+                infoPanel.innerHTML = '<div class="empty-state">👁️ Survolez une cellule pour voir ses méthodes publiques</div>';
             }
         });
         
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / (window.innerHeight - 200);
+            camera.aspect = (window.innerWidth - 320) / (window.innerHeight - 150);
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight - 200);
+            renderer.setSize(window.innerWidth - 320, window.innerHeight - 150);
         });
         
         // Animation loop
