@@ -76,20 +76,43 @@
         .tree ul {
             list-style: none;
             margin: 0;
-            padding-left: 12px;
+            padding-left: 10px;
         }
         .tree > li {
-            margin-top: 10px;
+            margin-top: 8px;
         }
         .tree-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: 12px;
             font-weight: 700;
             color: #cfeaff;
             margin: 8px 0 6px 0;
-            display: block;
             padding: 6px 8px;
             border-radius: 6px;
             background: rgba(100, 200, 255, 0.07);
+            cursor: pointer;
+            user-select: none;
+        }
+        .tree-group:hover {
+            background: rgba(100, 200, 255, 0.12);
+        }
+        .expand-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            background: rgba(100, 200, 255, 0.18);
+            color: #dfeeff;
+            font-weight: bold;
+            font-size: 12px;
+            line-height: 1;
+        }
+        .tree-group.collapsed + ul {
+            display: none;
         }
         .tree-item {
             display: block;
@@ -105,6 +128,9 @@
             transition: all 0.2s ease;
             margin: 2px 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .tree-item:hover {
             background: rgba(100, 200, 255, 0.08);
@@ -120,8 +146,22 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            margin-right: 8px;
             vertical-align: middle;
+            flex-shrink: 0;
+        }
+        .tree-item .kind {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.07);
+            color: #9cc8ff;
+            border: 1px solid rgba(100, 200, 255, 0.2);
         }
         .cell-name {
             font-size: 18px;
@@ -141,7 +181,7 @@
         }
         .method-item {
             padding: 6px 10px;
-            background: rgba(100, 200, 255, 0.1);
+            background: rgba(100, 200, 255, 0.08);
             border-left: 2px solid rgba(100, 200, 255, 0.4);
             border-radius: 3px;
             font-family: 'Courier New', monospace;
@@ -313,14 +353,17 @@
         const treeData = [
             {
                 group: 'Entités métier',
+                kind: 'entity',
                 items: ['CLIENT', 'PROJET', 'HEURE', 'FRAIS', 'ENCAISSEMENT', 'FACTURE', 'ISSUER\nPROFILE']
             },
             {
                 group: 'Services',
+                kind: 'service',
                 items: ['clientService', 'projectService', 'heuresService', 'factureService', 'encaissementService', 'fraisService', 'issuerService']
             },
             {
                 group: 'Dashboard & ADN',
+                kind: 'dashboard',
                 items: ['dashboardService', 'CSV Repos\n(ADN)']
             }
         ];
@@ -391,7 +434,7 @@
             mesh.position.set(cell.pos.x, cell.pos.y, cell.pos.z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            mesh.userData = { ...cell, originalSize: size };
+            mesh.userData = { ...cell };
             scene.add(mesh);
             cellMeshes.push(mesh);
             meshMap.set(cell.name, mesh);
@@ -439,17 +482,37 @@
 
         const treeRoot = document.getElementById('treeRoot');
         const infoPanel = document.getElementById('infoPanel');
-
         const getDisplayName = (name) => name.replace(/\n/g, ' ');
+
+        function getCellColor(name) {
+            const mesh = meshMap.get(name);
+            if (!mesh) return '#9aa6b2';
+            return '#' + mesh.material.color.getHexString();
+        }
+
+        function getKindLabel(name) {
+            if (['CLIENT','PROJET','HEURE','FRAIS','ENCAISSEMENT','FACTURE','ISSUER\nPROFILE'].includes(name)) return 'Entité';
+            if (['clientService','projectService','heuresService','factureService','encaissementService','fraisService','issuerService'].includes(name)) return 'Service';
+            if (['dashboardService'].includes(name)) return 'Dashboard';
+            if (['CSV Repos\n(ADN)'].includes(name)) return 'ADN';
+            return 'Bloc';
+        }
+
+        let collapsedGroups = new Set();
 
         function renderTree() {
             treeRoot.innerHTML = '';
             treeData.forEach((group) => {
                 const groupItem = document.createElement('li');
-                const groupLabel = document.createElement('span');
-                groupLabel.className = 'tree-group';
-                groupLabel.textContent = group.group;
-                groupItem.appendChild(groupLabel);
+                const header = document.createElement('div');
+                header.className = 'tree-group' + (collapsedGroups.has(group.group) ? ' collapsed' : '');
+                header.innerHTML = `<span class="expand-toggle">${collapsedGroups.has(group.group) ? '+' : '−'}</span><span>${group.group}</span>`;
+                header.addEventListener('click', () => {
+                    if (collapsedGroups.has(group.group)) collapsedGroups.delete(group.group);
+                    else collapsedGroups.add(group.group);
+                    renderTree();
+                });
+                groupItem.appendChild(header);
 
                 const ul = document.createElement('ul');
                 group.items.forEach((name) => {
@@ -458,7 +521,11 @@
                     button.type = 'button';
                     button.className = 'tree-item';
                     button.dataset.key = name;
-                    button.innerHTML = `<span class="dot" style="background:${getCellColor(name)}"></span>${getDisplayName(name)}`;
+                    button.innerHTML = `
+                        <span class="dot" style="background:${getCellColor(name)}"></span>
+                        <span class="kind">${getKindLabel(name)}</span>
+                        <span>${getDisplayName(name)}</span>
+                    `;
                     button.addEventListener('click', () => setSelectedCell(name, true));
                     li.appendChild(button);
                     ul.appendChild(li);
@@ -473,12 +540,6 @@
             document.querySelectorAll('.tree-item').forEach((btn) => {
                 btn.classList.toggle('active', btn.dataset.key === selectedCellName);
             });
-        }
-
-        function getCellColor(name) {
-            const mesh = meshMap.get(name);
-            if (!mesh) return '#9aa6b2';
-            return '#' + mesh.material.color.getHexString();
         }
 
         function renderInfoPanel(name) {
@@ -502,14 +563,13 @@
             selectedCellName = name;
             updateTreeSelection();
             renderInfoPanel(name);
-
             cellMeshes.forEach((mesh) => {
                 const isSelected = mesh.userData.name === name;
                 mesh.material.emissiveIntensity = isSelected ? 1.1 : 0.32;
                 mesh.scale.set(isSelected ? 1.35 : 1, isSelected ? 1.35 : 1, isSelected ? 1.35 : 1);
             });
 
-            if (!fromList && selectedCellName) {
+            if (fromList) {
                 const treeBtn = document.querySelector(`.tree-item[data-key="${name}"]`);
                 if (treeBtn) treeBtn.scrollIntoView({ block: 'nearest' });
             }
