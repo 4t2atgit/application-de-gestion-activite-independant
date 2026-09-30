@@ -21,7 +21,7 @@
         }
         #canvas {
             width: 100%;
-            height: calc(100vh - 150px);
+            height: calc(100vh - 200px);
             display: block;
         }
         .header {
@@ -43,7 +43,7 @@
             color: #aaa;
         }
         .controls {
-            padding: 15px 20px;
+            padding: 12px 20px;
             background: rgba(0, 0, 0, 0.2);
             border-top: 1px solid rgba(100, 200, 255, 0.3);
             display: flex;
@@ -93,7 +93,7 @@
         }
         .legend-item {
             display: inline-block;
-            margin: 0 15px 0 0;
+            margin: 0 12px 0 0;
         }
         .legend-color {
             display: inline-block;
@@ -102,6 +102,27 @@
             border-radius: 50%;
             margin-right: 4px;
             vertical-align: middle;
+        }
+        .info-panel {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(100, 200, 255, 0.3);
+            font-size: 12px;
+            color: #aaa;
+            max-height: 40px;
+            overflow-y: auto;
+        }
+        .cell-info {
+            display: inline-block;
+            margin-right: 30px;
+        }
+        .cell-name {
+            color: #64c8ff;
+            font-weight: bold;
+        }
+        .cell-methods {
+            color: #888;
+            font-size: 11px;
         }
     </style>
 </head>
@@ -123,8 +144,8 @@
             <div class="checkbox-toggle active" id="showSignals"></div>
         </div>
         <div class="control-item">
-            <label>Étiquettes</label>
-            <div class="checkbox-toggle active" id="showLabels"></div>
+            <label>Cascade facture</label>
+            <div class="checkbox-toggle active" id="showCascade"></div>
         </div>
         <div class="control-item">
             <label>Organelles respirantes</label>
@@ -135,24 +156,46 @@
             <span class="legend-color" style="background: #ff6b6b;"></span> Entités métier
         </div>
         <div class="legend-item info-legend">
-            <span class="legend-color" style="background: #4ecdc4;"></span> Services (métabolisme)
+            <span class="legend-color" style="background: #4ecdc4;"></span> Services
         </div>
         <div class="legend-item info-legend">
-            <span class="legend-color" style="background: #ffd93d;"></span> Dashboard (cœur)
+            <span class="legend-color" style="background: #ffd93d;"></span> Dashboard
         </div>
         <div class="legend-item info-legend">
-            <span class="legend-color" style="background: #a8e6cf;"></span> Persistance (ADN)
+            <span class="legend-color" style="background: #a8e6cf;"></span> Persistance
         </div>
     </div>
 
+    <div class="info-panel" id="infoPanel"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // Public methods for each entity/service
+        const publicMethods = {
+            'CLIENT': ['listClients()', 'getClientById(id)', 'createClient(input)', 'updateClient(id, input)', 'deleteClient(id)'],
+            'PROJET': ['listProjects()', 'getProjectById(id)', 'createProject(input)', 'updateProject(id, input)'],
+            'HEURE': ['listHeures()', 'getHeureById(id)', 'createHeure(input)', 'updateHeure(id, input)', 'deleteHeure(id)'],
+            'FRAIS': ['listFrais()', 'createFrais(input)', 'updateFrais(id, input)', 'deleteFrais(id)'],
+            'ENCAISSEMENT': ['listEncaissements()', 'createEncaissement(input)', 'updateEncaissement(id, input)'],
+            'FACTURE': ['listFactures()', 'getFactureById(id)', 'createFacture(input)', 'updateFacture(id, input)', 'deleteFacture(id)', 'createAvoir(id)', 'buildAnnualExport(year)'],
+            'ISSUER\nPROFILE': ['getIssuerProfile()', 'updateIssuerProfile(input)', 'isIssuerProfileComplete()'],
+            'clientService': ['listClients()', 'getClientById(id)', 'createClient(input)', 'updateClient(id)', 'softDeleteClientsForProject()'],
+            'projectService': ['listProjects()', 'listAllProjects()', 'getProjectById(id)', 'createProject(input)', 'updateProject(id, input)'],
+            'heuresService': ['listHeures()', 'listAllHeures()', 'createHeure(input)', 'updateHeure(id, input)', 'deleteHeure(id)'],
+            'factureService': ['listFactures()', 'listAllFactures()', 'createFacture(input)', 'updateFacture(id, input)', 'deleteFacture(id)', 'createAvoir(id)', 'getChiffreAffairesAnnuel()'],
+            'encaissementService': ['listEncaissements()', 'createEncaissement(input)', 'updateEncaissement(id, input)', 'deleteEncaissement(id)'],
+            'fraisService': ['listFrais()', 'createFrais(input)', 'updateFrais(id, input)', 'deleteFrais(id)'],
+            'issuerService': ['getIssuerProfile()', 'updateIssuerProfile(input)', 'isIssuerProfileComplete()'],
+            'dashboardService': ['getDashboardStats()', 'computeMonthlyPoints()', 'computeClientShare()'],
+            'CSV Repos\n(ADN)': ['writeAllClients()', 'writeAllProjects()', 'writeAllHeures()', 'writeAllFactures()', 'writeAllFrais()', 'writeAllEncaissements()']
+        };
+
         // Scene setup
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 150), 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 200), 0.1, 10000);
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true, alpha: true });
         
-        renderer.setSize(window.innerWidth, window.innerHeight - 150);
+        renderer.setSize(window.innerWidth, window.innerHeight - 200);
         renderer.setClearColor(0x0a0e27, 1);
         renderer.shadowMap.enabled = true;
         
@@ -193,7 +236,7 @@
             { name: 'FRAIS', pos: { x: 30, y: 40, z: -40 }, color: 0xff6b6b, type: 'entity' },
             { name: 'ENCAISSEMENT', pos: { x: 60, y: 40, z: 0 }, color: 0xff6b6b, type: 'entity' },
             
-            { name: 'FACTURE\n⭐⭐⭐', pos: { x: 60, y: -30, z: 0 }, color: 0xff6b6b, type: 'entity', size: 1.5 },
+            { name: 'FACTURE', pos: { x: 60, y: -30, z: 0 }, color: 0xff6b6b, type: 'entity', size: 1.5 },
             { name: 'ISSUER\nPROFILE', pos: { x: -60, y: -30, z: 0 }, color: 0xff6b6b, type: 'entity' },
             
             { name: 'factureService', pos: { x: 30, y: 0, z: 40 }, color: 0x4ecdc4, type: 'service' },
@@ -204,16 +247,15 @@
             { name: 'fraisService', pos: { x: -45, y: -15, z: 40 }, color: 0x4ecdc4, type: 'service' },
             { name: 'issuerService', pos: { x: 45, y: -15, z: 40 }, color: 0x4ecdc4, type: 'service' },
             
-            { name: 'dashboardService\n(CŒUR)', pos: { x: 0, y: 0, z: 0 }, color: 0xffd93d, type: 'dashboard', size: 2 },
+            { name: 'dashboardService', pos: { x: 0, y: 0, z: 0 }, color: 0xffd93d, type: 'dashboard', size: 2 },
             
             { name: 'CSV Repos\n(ADN)', pos: { x: 0, y: -60, z: 0 }, color: 0xa8e6cf, type: 'dna', size: 1.8 }
         ];
         
         // Create cell meshes
         const cellMeshes = [];
-        const cellLabels = [];
         
-        cells.forEach(cell => {
+        cells.forEach((cell, idx) => {
             const size = cell.size || 1;
             const geometry = new THREE.IcosahedronGeometry(8 * size, 4);
             const material = new THREE.MeshPhongMaterial({
@@ -227,33 +269,9 @@
             mesh.position.set(cell.pos.x, cell.pos.y, cell.pos.z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            mesh.userData = { ...cell, originalSize: size };
+            mesh.userData = { ...cell, originalSize: size, idx };
             scene.add(mesh);
             cellMeshes.push(mesh);
-            
-            // Labels
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, 256, 256);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            const lines = cell.name.split('\n');
-            lines.forEach((line, i) => {
-                ctx.fillText(line, 128, 100 + i * 40);
-            });
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, sizeAttenuation: true });
-            const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.scale.set(30, 30, 1);
-            sprite.position.copy(mesh.position);
-            sprite.position.z += 20;
-            scene.add(sprite);
-            cellLabels.push(sprite);
         });
         
         // Connection lines (pores cellulaires)
@@ -280,15 +298,23 @@
             lineSegments.push({ line, fromIdx: from, toIdx: to });
         });
         
-        // Signal particles
+        // Cascade animation - HEURE -> FACTURE -> ENCAISSEMENT
+        const cascadeSequence = [
+            { from: 2, to: 5, label: 'buildLines()', color: 0xff9999, duration: 2 },  // HEURE -> FACTURE
+            { from: 5, to: 8, label: 'updateFacture()', color: 0xff9999, duration: 1.5 },  // FACTURE -> encaissementService
+            { from: 8, to: 4, label: 'createEncaissement()', color: 0xff9999, duration: 1.5 }  // ENCAISSEMENT
+        ];
+        
+        const cascadeParticles = [];
+        
+        // Signal particles (neurotransmitters)
         const particles = [];
         const particleGeometry = new THREE.SphereGeometry(1.5, 8, 8);
-        const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x64c8ff, emissive: 0x64c8ff });
         
-        connections.forEach(([from, to]) => {
-            for (let i = 0; i < 3; i++) {
-                const particle = new THREE.Mesh(particleGeometry, particleMaterial.clone());
-                particle.userData = { from, to, progress: Math.random(), delay: Math.random() * 2 };
+        connections.forEach(([from, to], idx) => {
+            for (let i = 0; i < 2; i++) {
+                const particle = new THREE.Mesh(particleGeometry, new THREE.MeshBasicMaterial({ color: 0x64c8ff, emissive: 0x64c8ff }));
+                particle.userData = { from, to, progress: Math.random(), delay: Math.random() * 2, isCascade: false };
                 scene.add(particle);
                 particles.push(particle);
             }
@@ -297,8 +323,9 @@
         // Controls
         let autoRotate = true;
         let showSignals = true;
-        let showLabels = true;
+        let showCascade = true;
         let showPulsing = true;
+        let cascadeTimer = 0;
         
         document.getElementById('autoRotate').addEventListener('click', function() {
             this.classList.toggle('active');
@@ -308,13 +335,11 @@
         document.getElementById('showSignals').addEventListener('click', function() {
             this.classList.toggle('active');
             showSignals = this.classList.contains('active');
-            particles.forEach(p => p.visible = showSignals);
         });
         
-        document.getElementById('showLabels').addEventListener('click', function() {
+        document.getElementById('showCascade').addEventListener('click', function() {
             this.classList.toggle('active');
-            showLabels = this.classList.contains('active');
-            cellLabels.forEach(l => l.visible = showLabels);
+            showCascade = this.classList.contains('active');
         });
         
         document.getElementById('showPulsing').addEventListener('click', function() {
@@ -322,14 +347,15 @@
             showPulsing = this.classList.contains('active');
         });
         
-        // Mouse interaction
+        // Mouse interaction - Display methods on hover
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let hoveredCell = null;
+        const infoPanel = document.getElementById('infoPanel');
         
         window.addEventListener('mousemove', (e) => {
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -((e.clientY - 150) / (window.innerHeight - 150)) * 2 + 1;
+            mouse.y = -((e.clientY - 200) / (window.innerHeight - 200)) * 2 + 1;
             
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(cellMeshes);
@@ -339,17 +365,34 @@
                 cell.scale.set(1, 1, 1);
             });
             
+            infoPanel.innerHTML = '';
+            
             if (intersects.length > 0) {
                 hoveredCell = intersects[0].object;
                 hoveredCell.material.emissiveIntensity = 0.8;
-                hoveredCell.scale.set(1.2, 1.2, 1.2);
+                hoveredCell.scale.set(1.15, 1.15, 1.15);
+                
+                const cellName = hoveredCell.userData.name;
+                const methods = publicMethods[cellName] || [];
+                
+                if (methods.length > 0) {
+                    let html = `<div class="cell-info">
+                        <span class="cell-name">${cellName}</span>
+                        <div class="cell-methods">
+                            ${methods.join(' • ')}
+                        </div>
+                    </div>`;
+                    infoPanel.innerHTML = html;
+                }
+            } else {
+                hoveredCell = null;
             }
         });
         
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / (window.innerHeight - 150);
+            camera.aspect = window.innerWidth / (window.innerHeight - 200);
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight - 150);
+            renderer.setSize(window.innerWidth, window.innerHeight - 200);
         });
         
         // Animation loop
@@ -357,6 +400,12 @@
         const animate = () => {
             requestAnimationFrame(animate);
             time += 0.01;
+            cascadeTimer += 0.01;
+            
+            // Reset cascade every 8 seconds
+            if (cascadeTimer > 8) {
+                cascadeTimer = 0;
+            }
             
             // Auto rotate
             if (autoRotate) {
@@ -384,7 +433,45 @@
                 cell.rotation.y += 0.007;
             });
             
-            // Particle signals
+            // Cascade animation
+            if (showCascade) {
+                cascadeSequence.forEach((step, stepIdx) => {
+                    const stepStart = stepIdx * 2.5;
+                    const relativeTime = cascadeTimer - stepStart;
+                    
+                    if (relativeTime >= 0 && relativeTime <= step.duration) {
+                        const progress = relativeTime / step.duration;
+                        const from = cellMeshes[step.from];
+                        const to = cellMeshes[step.to];
+                        
+                        // Create cascade particle if needed
+                        let cascadeParticle = cascadeParticles[stepIdx];
+                        if (!cascadeParticle) {
+                            const geom = new THREE.SphereGeometry(2.5, 16, 16);
+                            const mat = new THREE.MeshBasicMaterial({ color: step.color, emissive: step.color });
+                            cascadeParticle = new THREE.Mesh(geom, mat);
+                            scene.add(cascadeParticle);
+                            cascadeParticles[stepIdx] = cascadeParticle;
+                        }
+                        
+                        cascadeParticle.position.lerpVectors(from.position, to.position, progress);
+                        cascadeParticle.scale.set(
+                            0.8 + Math.sin(progress * Math.PI) * 0.4,
+                            0.8 + Math.sin(progress * Math.PI) * 0.4,
+                            0.8 + Math.sin(progress * Math.PI) * 0.4
+                        );
+                        cascadeParticle.visible = true;
+                        
+                        // Highlight cells in cascade
+                        from.material.emissiveIntensity = 0.7;
+                        to.material.emissiveIntensity = 0.7;
+                    } else if (cascadeParticles[stepIdx]) {
+                        cascadeParticles[stepIdx].visible = false;
+                    }
+                });
+            }
+            
+            // Regular signal particles
             particles.forEach(p => {
                 if (showSignals) {
                     p.userData.progress += 0.005;
@@ -402,6 +489,9 @@
                         1 + Math.sin(time * 3) * 0.3,
                         1 + Math.sin(time * 3) * 0.3
                     );
+                    p.visible = true;
+                } else {
+                    p.visible = false;
                 }
             });
             
