@@ -29,17 +29,21 @@
             flex: 1;
             display: block;
             height: 100%;
+            cursor: grab;
+        }
+        #canvas.dragging {
+            cursor: grabbing;
         }
         .sidebar {
-            width: 320px;
-            background: rgba(0, 0, 0, 0.4);
+            width: 360px;
+            background: rgba(0, 0, 0, 0.42);
             backdrop-filter: blur(10px);
             border-left: 1px solid rgba(100, 200, 255, 0.3);
-            padding: 20px;
+            padding: 16px 14px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
         .sidebar::-webkit-scrollbar {
             width: 6px;
@@ -54,12 +58,70 @@
         .sidebar::-webkit-scrollbar-thumb:hover {
             background: rgba(100, 200, 255, 0.5);
         }
-        .info-panel {
+        .tree-section, .info-panel {
             background: rgba(20, 30, 60, 0.8);
             border: 1px solid rgba(100, 200, 255, 0.4);
-            border-radius: 8px;
-            padding: 15px;
-            min-height: 150px;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .tree-header {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7ec2ff;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .tree,
+        .tree ul {
+            list-style: none;
+            margin: 0;
+            padding-left: 12px;
+        }
+        .tree > li {
+            margin-top: 10px;
+        }
+        .tree-group {
+            font-size: 12px;
+            font-weight: 700;
+            color: #cfeaff;
+            margin: 8px 0 6px 0;
+            display: block;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(100, 200, 255, 0.07);
+        }
+        .tree-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #dfeeff;
+            border-radius: 6px;
+            padding: 7px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 2px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .tree-item:hover {
+            background: rgba(100, 200, 255, 0.08);
+            border-color: rgba(100, 200, 255, 0.2);
+        }
+        .tree-item.active {
+            background: linear-gradient(90deg, rgba(100, 200, 255, 0.18), rgba(255, 255, 255, 0.04));
+            border-color: rgba(100, 200, 255, 0.6);
+            box-shadow: 0 0 14px rgba(100, 200, 255, 0.16);
+        }
+        .tree-item .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
         }
         .cell-name {
             font-size: 18px;
@@ -84,6 +146,7 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
             color: #d4e8ff;
+            word-break: break-word;
         }
         .empty-state {
             color: #666;
@@ -181,13 +244,17 @@
     <div class="main-container">
         <canvas id="canvas"></canvas>
         
-        <div class="sidebar">
+        <aside class="sidebar">
+            <div class="tree-section">
+                <div class="tree-header">Arborescence de l'écosystème</div>
+                <ul id="treeRoot" class="tree"></ul>
+            </div>
             <div class="info-panel">
                 <div id="infoPanel">
-                    <div class="empty-state">👁️ Survolez une cellule pour voir ses méthodes publiques</div>
+                    <div class="empty-state">👁️ Sélectionnez un élément dans l'arbre ou survolez la représentation 3D</div>
                 </div>
             </div>
-        </div>
+        </aside>
     </div>
     
     <div class="controls">
@@ -224,7 +291,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Public methods for each entity/service
         const publicMethods = {
             'CLIENT': ['listClients()', 'getClientById(id)', 'createClient(input)', 'updateClient(id, input)', 'deleteClient(id)'],
             'PROJET': ['listProjects()', 'getProjectById(id)', 'createProject(input)', 'updateProject(id, input)'],
@@ -244,55 +310,60 @@
             'CSV Repos\n(ADN)': ['writeAllClients()', 'writeAllProjects()', 'writeAllHeures()', 'writeAllFactures()', 'writeAllFrais()', 'writeAllEncaissements()']
         };
 
-        // Scene setup
+        const treeData = [
+            {
+                group: 'Entités métier',
+                items: ['CLIENT', 'PROJET', 'HEURE', 'FRAIS', 'ENCAISSEMENT', 'FACTURE', 'ISSUER\nPROFILE']
+            },
+            {
+                group: 'Services',
+                items: ['clientService', 'projectService', 'heuresService', 'factureService', 'encaissementService', 'fraisService', 'issuerService']
+            },
+            {
+                group: 'Dashboard & ADN',
+                items: ['dashboardService', 'CSV Repos\n(ADN)']
+            }
+        ];
+
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 320) / (window.innerHeight - 150), 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 360) / (window.innerHeight - 150), 0.1, 10000);
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true, alpha: true });
-        
-        renderer.setSize(window.innerWidth - 320, window.innerHeight - 150);
+
+        renderer.setSize(window.innerWidth - 360, window.innerHeight - 150);
         renderer.setClearColor(0x0a0e27, 1);
         renderer.shadowMap.enabled = true;
-        
         camera.position.set(0, 0, 120);
-        
-        // Lighting
+
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
-        
+
         const pointLight = new THREE.PointLight(0x64c8ff, 2, 500);
         pointLight.position.set(50, 100, 100);
         pointLight.castShadow = true;
         scene.add(pointLight);
-        
+
         const pointLight2 = new THREE.PointLight(0x4ecdc4, 1.5, 500);
         pointLight2.position.set(-50, -50, 80);
         scene.add(pointLight2);
-        
-        // Background stars
+
         const starsGeometry = new THREE.BufferGeometry();
         const starsMaterial = new THREE.PointsMaterial({ color: 0x64c8ff, size: 0.5, sizeAttenuation: true });
         const starsVertices = [];
-        for (let i = 0; i < 1000; i++) {
-            const x = (Math.random() - 0.5) * 2000;
-            const y = (Math.random() - 0.5) * 2000;
-            const z = (Math.random() - 0.5) * 2000;
-            starsVertices.push(x, y, z);
+        for (let i = 0; i < 900; i++) {
+            starsVertices.push((Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000);
         }
         starsGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(starsVertices), 3));
         const stars = new THREE.Points(starsGeometry, starsMaterial);
         scene.add(stars);
-        
-        // Cells data
+
         const cells = [
             { name: 'CLIENT', pos: { x: -60, y: 40, z: 0 }, color: 0xff6b6b, type: 'entity' },
             { name: 'PROJET', pos: { x: -30, y: 40, z: -40 }, color: 0xff6b6b, type: 'entity' },
             { name: 'HEURE', pos: { x: 0, y: 40, z: -50 }, color: 0xff6b6b, type: 'entity' },
             { name: 'FRAIS', pos: { x: 30, y: 40, z: -40 }, color: 0xff6b6b, type: 'entity' },
             { name: 'ENCAISSEMENT', pos: { x: 60, y: 40, z: 0 }, color: 0xff6b6b, type: 'entity' },
-            
             { name: 'FACTURE', pos: { x: 60, y: -30, z: 0 }, color: 0xff6b6b, type: 'entity', size: 1.5 },
             { name: 'ISSUER\nPROFILE', pos: { x: -60, y: -30, z: 0 }, color: 0xff6b6b, type: 'entity' },
-            
             { name: 'factureService', pos: { x: 30, y: 0, z: 40 }, color: 0x4ecdc4, type: 'service' },
             { name: 'encaissementService', pos: { x: 15, y: -15, z: 50 }, color: 0x4ecdc4, type: 'service' },
             { name: 'heuresService', pos: { x: -15, y: -15, z: 50 }, color: 0x4ecdc4, type: 'service' },
@@ -300,16 +371,13 @@
             { name: 'projectService', pos: { x: 0, y: 15, z: 50 }, color: 0x4ecdc4, type: 'service' },
             { name: 'fraisService', pos: { x: -45, y: -15, z: 40 }, color: 0x4ecdc4, type: 'service' },
             { name: 'issuerService', pos: { x: 45, y: -15, z: 40 }, color: 0x4ecdc4, type: 'service' },
-            
             { name: 'dashboardService', pos: { x: 0, y: 0, z: 0 }, color: 0xffd93d, type: 'dashboard', size: 2 },
-            
             { name: 'CSV Repos\n(ADN)', pos: { x: 0, y: -60, z: 0 }, color: 0xa8e6cf, type: 'dna', size: 1.8 }
         ];
-        
-        // Create cell meshes
+
         const cellMeshes = [];
-        
-        cells.forEach((cell, idx) => {
+        const meshMap = new Map();
+        cells.forEach((cell) => {
             const size = cell.size || 1;
             const geometry = new THREE.IcosahedronGeometry(8 * size, 4);
             const material = new THREE.MeshPhongMaterial({
@@ -323,250 +391,309 @@
             mesh.position.set(cell.pos.x, cell.pos.y, cell.pos.z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            mesh.userData = { ...cell, originalSize: size, idx };
+            mesh.userData = { ...cell, originalSize: size };
             scene.add(mesh);
             cellMeshes.push(mesh);
+            meshMap.set(cell.name, mesh);
         });
-        
-        // Connection lines (pores cellulaires)
-        const connections = [
-            [5, 0], [5, 1], [5, 2], [5, 4],  // Facture connects
-            [0, 7], [1, 9], [2, 10], [4, 8], [6, 11], [3, 12], [6, 13],  // Services connect
-            [7, 14], [8, 14], [9, 14], [10, 14], [12, 14], [13, 14], [11, 14], // All to dashboard
-            [14, 15] // Dashboard to DNA
+
+        const connectionPairs = [
+            [5, 0], [5, 1], [5, 2], [5, 4],
+            [0, 7], [1, 9], [2, 10], [4, 8], [6, 11], [3, 12], [6, 13],
+            [7, 14], [8, 14], [9, 14], [10, 14], [12, 14], [13, 14], [11, 14],
+            [14, 15]
         ];
-        
-        const linesMaterial = new THREE.LineBasicMaterial({ color: 0x64c8ff, linewidth: 2, transparent: true, opacity: 0.3 });
+
         const lineSegments = [];
-        
-        connections.forEach(([from, to]) => {
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x64c8ff, transparent: true, opacity: 0.28 });
+        connectionPairs.forEach(([from, to]) => {
             const fromPos = cellMeshes[from].position;
             const toPos = cellMeshes[to].position;
             const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(
-                new Float32Array([fromPos.x, fromPos.y, fromPos.z, toPos.x, toPos.y, toPos.z]),
-                3
-            ));
-            const line = new THREE.Line(geometry, linesMaterial);
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+                fromPos.x, fromPos.y, fromPos.z,
+                toPos.x, toPos.y, toPos.z
+            ]), 3));
+            const line = new THREE.Line(geometry, lineMaterial.clone());
             scene.add(line);
             lineSegments.push({ line, fromIdx: from, toIdx: to });
         });
-        
-        // Cascade animation - HEURE -> FACTURE -> ENCAISSEMENT
+
         const cascadeSequence = [
-            { from: 2, to: 5, label: 'buildLines()', color: 0xff9999, duration: 2 },  // HEURE -> FACTURE
-            { from: 5, to: 8, label: 'updateFacture()', color: 0xff9999, duration: 1.5 },  // FACTURE -> encaissementService
-            { from: 8, to: 4, label: 'createEncaissement()', color: 0xff9999, duration: 1.5 }  // ENCAISSEMENT
+            { from: 2, to: 5, color: 0xff9999, duration: 2 },
+            { from: 5, to: 8, color: 0xff9999, duration: 1.5 },
+            { from: 8, to: 4, color: 0xff9999, duration: 1.5 }
         ];
-        
         const cascadeParticles = [];
-        
-        // Signal particles (neurotransmitters)
+
         const particles = [];
-        const particleGeometry = new THREE.SphereGeometry(1.5, 8, 8);
-        
-        connections.forEach(([from, to], idx) => {
+        const particleGeometry = new THREE.SphereGeometry(1.5, 10, 10);
+        connectionPairs.forEach(([from, to]) => {
             for (let i = 0; i < 2; i++) {
                 const particle = new THREE.Mesh(particleGeometry, new THREE.MeshBasicMaterial({ color: 0x64c8ff, emissive: 0x64c8ff }));
-                particle.userData = { from, to, progress: Math.random(), delay: Math.random() * 2, isCascade: false };
+                particle.userData = { from, to, progress: Math.random(), delay: Math.random() * 2 };
                 scene.add(particle);
                 particles.push(particle);
             }
         });
-        
-        // Controls
+
+        const treeRoot = document.getElementById('treeRoot');
+        const infoPanel = document.getElementById('infoPanel');
+
+        const getDisplayName = (name) => name.replace(/\n/g, ' ');
+
+        function renderTree() {
+            treeRoot.innerHTML = '';
+            treeData.forEach((group) => {
+                const groupItem = document.createElement('li');
+                const groupLabel = document.createElement('span');
+                groupLabel.className = 'tree-group';
+                groupLabel.textContent = group.group;
+                groupItem.appendChild(groupLabel);
+
+                const ul = document.createElement('ul');
+                group.items.forEach((name) => {
+                    const li = document.createElement('li');
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'tree-item';
+                    button.dataset.key = name;
+                    button.innerHTML = `<span class="dot" style="background:${getCellColor(name)}"></span>${getDisplayName(name)}`;
+                    button.addEventListener('click', () => setSelectedCell(name, true));
+                    li.appendChild(button);
+                    ul.appendChild(li);
+                });
+                groupItem.appendChild(ul);
+                treeRoot.appendChild(groupItem);
+            });
+            updateTreeSelection();
+        }
+
+        function updateTreeSelection() {
+            document.querySelectorAll('.tree-item').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.key === selectedCellName);
+            });
+        }
+
+        function getCellColor(name) {
+            const mesh = meshMap.get(name);
+            if (!mesh) return '#9aa6b2';
+            return '#' + mesh.material.color.getHexString();
+        }
+
+        function renderInfoPanel(name) {
+            const methods = publicMethods[name] || [];
+            if (!methods.length) {
+                infoPanel.innerHTML = '<div class="empty-state">Pas de méthode publique déclarée pour cet élément.</div>';
+                return;
+            }
+
+            infoPanel.innerHTML = `
+                <div class="cell-name">${getDisplayName(name)}</div>
+                <div class="cell-methods">
+                    ${methods.map((method) => `<div class="method-item">${method}</div>`).join('')}
+                </div>
+            `;
+        }
+
+        let selectedCellName = 'FACTURE';
+
+        function setSelectedCell(name, fromList = false) {
+            selectedCellName = name;
+            updateTreeSelection();
+            renderInfoPanel(name);
+
+            cellMeshes.forEach((mesh) => {
+                const isSelected = mesh.userData.name === name;
+                mesh.material.emissiveIntensity = isSelected ? 1.1 : 0.32;
+                mesh.scale.set(isSelected ? 1.35 : 1, isSelected ? 1.35 : 1, isSelected ? 1.35 : 1);
+            });
+
+            if (!fromList && selectedCellName) {
+                const treeBtn = document.querySelector(`.tree-item[data-key="${name}"]`);
+                if (treeBtn) treeBtn.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        renderTree();
+        setSelectedCell('FACTURE');
+
+        const canvas = document.getElementById('canvas');
+        let isDragging = false;
+        let lastPointerX = 0;
+        let lastPointerY = 0;
+
+        canvas.addEventListener('pointerdown', (event) => {
+            isDragging = true;
+            canvas.classList.add('dragging');
+            lastPointerX = event.clientX;
+            lastPointerY = event.clientY;
+            canvas.setPointerCapture(event.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (event) => {
+            if (!isDragging) return;
+            const deltaX = event.clientX - lastPointerX;
+            const deltaY = event.clientY - lastPointerY;
+            lastPointerX = event.clientX;
+            lastPointerY = event.clientY;
+            scene.rotation.y += deltaX * 0.01;
+            scene.rotation.x += deltaY * 0.01;
+            if (scene.rotation.x > 1.2) scene.rotation.x = 1.2;
+            if (scene.rotation.x < -1.2) scene.rotation.x = -1.2;
+        });
+
+        const stopDragging = () => {
+            isDragging = false;
+            canvas.classList.remove('dragging');
+        };
+
+        canvas.addEventListener('pointerup', stopDragging);
+        canvas.addEventListener('pointerleave', stopDragging);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        canvas.addEventListener('click', (event) => {
+            if (isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersections = raycaster.intersectObjects(cellMeshes);
+            if (intersections.length > 0) {
+                const picked = intersections[0].object.userData.name;
+                setSelectedCell(picked, false);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersections = raycaster.intersectObjects(cellMeshes);
+            if (intersections.length > 0) {
+                const name = intersections[0].object.userData.name;
+                renderInfoPanel(name);
+                const treeBtn = document.querySelector(`.tree-item[data-key="${name}"]`);
+                if (treeBtn) treeBtn.classList.add('active');
+            }
+        });
+
         let autoRotate = true;
         let showSignals = true;
         let showCascade = true;
         let showPulsing = true;
         let cascadeTimer = 0;
-        
+
         document.getElementById('autoRotate').addEventListener('click', function() {
             this.classList.toggle('active');
             autoRotate = this.classList.contains('active');
         });
-        
+
         document.getElementById('showSignals').addEventListener('click', function() {
             this.classList.toggle('active');
             showSignals = this.classList.contains('active');
         });
-        
+
         document.getElementById('showCascade').addEventListener('click', function() {
             this.classList.toggle('active');
             showCascade = this.classList.contains('active');
         });
-        
+
         document.getElementById('showPulsing').addEventListener('click', function() {
             this.classList.toggle('active');
             showPulsing = this.classList.contains('active');
         });
-        
-        // Mouse interaction - Display methods on hover
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let hoveredCell = null;
-        const infoPanel = document.getElementById('infoPanel');
-        
-        window.addEventListener('mousemove', (e) => {
-            const canvasLeft = window.innerWidth - 320;
-            if (e.clientX > canvasLeft) {
-                // Hovering over sidebar
-                cellMeshes.forEach(cell => {
-                    cell.material.emissiveIntensity = 0.3;
-                    cell.scale.set(1, 1, 1);
-                });
-                return;
-            }
-            
-            mouse.x = (e.clientX / canvasLeft) * 2 - 1;
-            mouse.y = -((e.clientY - 150) / (window.innerHeight - 150)) * 2 + 1;
-            
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(cellMeshes);
-            
-            cellMeshes.forEach(cell => {
-                cell.material.emissiveIntensity = 0.3;
-                cell.scale.set(1, 1, 1);
-            });
-            
-            if (intersects.length > 0) {
-                hoveredCell = intersects[0].object;
-                hoveredCell.material.emissiveIntensity = 0.8;
-                hoveredCell.scale.set(1.15, 1.15, 1.15);
-                
-                const cellName = hoveredCell.userData.name;
-                const methods = publicMethods[cellName] || [];
-                
-                if (methods.length > 0) {
-                    let html = `
-                        <div class="cell-name">${cellName}</div>
-                        <div class="cell-methods">
-                            ${methods.map(method => `<div class="method-item">${method}</div>`).join('')}
-                        </div>
-                    `;
-                    infoPanel.innerHTML = html;
-                }
-            } else {
-                hoveredCell = null;
-                infoPanel.innerHTML = '<div class="empty-state">👁️ Survolez une cellule pour voir ses méthodes publiques</div>';
-            }
-        });
-        
+
         window.addEventListener('resize', () => {
-            camera.aspect = (window.innerWidth - 320) / (window.innerHeight - 150);
+            camera.aspect = (window.innerWidth - 360) / (window.innerHeight - 150);
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth - 320, window.innerHeight - 150);
+            renderer.setSize(window.innerWidth - 360, window.innerHeight - 150);
         });
-        
-        // Animation loop
+
         let time = 0;
-        const animate = () => {
+        function animate() {
             requestAnimationFrame(animate);
             time += 0.01;
             cascadeTimer += 0.01;
-            
-            // Reset cascade every 8 seconds
-            if (cascadeTimer > 8) {
-                cascadeTimer = 0;
+            if (cascadeTimer > 8) cascadeTimer = 0;
+
+            if (autoRotate && !isDragging) {
+                scene.rotation.y += 0.0006;
+                scene.rotation.x += 0.0002;
             }
-            
-            // Auto rotate
-            if (autoRotate) {
-                scene.rotation.y += 0.0003;
-                scene.rotation.x += 0.0001;
-            }
-            
-            // Pulsing effect
+
             if (showPulsing) {
-                cellMeshes.forEach(cell => {
-                    const pulse = 1 + Math.sin(time * 2 + cell.position.x) * 0.1;
-                    if (cell.userData.type === 'dashboard') {
-                        cell.scale.set(pulse * 1.5, pulse * 1.5, pulse * 1.5);
-                    } else if (cell.userData.type === 'dna') {
-                        cell.scale.set(pulse * 1.2, pulse * 1.2, pulse * 1.2);
-                    } else {
-                        cell.scale.set(pulse, pulse, pulse);
+                cellMeshes.forEach((mesh) => {
+                    const pulse = 1 + Math.sin(time * 2 + mesh.position.x) * 0.12;
+                    if (mesh.userData.type === 'dashboard') {
+                        mesh.scale.set(pulse * 1.5, pulse * 1.5, pulse * 1.5);
+                    } else if (mesh.userData.type === 'dna') {
+                        mesh.scale.set(pulse * 1.2, pulse * 1.2, pulse * 1.2);
+                    } else if (mesh.userData.name !== selectedCellName) {
+                        mesh.scale.set(pulse, pulse, pulse);
                     }
                 });
             }
-            
-            // Spinning cells
-            cellMeshes.forEach(cell => {
-                cell.rotation.x += 0.005;
-                cell.rotation.y += 0.007;
+
+            cellMeshes.forEach((mesh) => {
+                mesh.rotation.x += 0.008;
+                mesh.rotation.y += 0.01;
             });
-            
-            // Cascade animation
+
             if (showCascade) {
                 cascadeSequence.forEach((step, stepIdx) => {
-                    const stepStart = stepIdx * 2.5;
-                    const relativeTime = cascadeTimer - stepStart;
-                    
-                    if (relativeTime >= 0 && relativeTime <= step.duration) {
-                        const progress = relativeTime / step.duration;
+                    const phase = cascadeTimer - stepIdx * 2.5;
+                    if (phase >= 0 && phase <= step.duration) {
+                        const progress = phase / step.duration;
                         const from = cellMeshes[step.from];
                         const to = cellMeshes[step.to];
-                        
-                        // Create cascade particle if needed
-                        let cascadeParticle = cascadeParticles[stepIdx];
-                        if (!cascadeParticle) {
-                            const geom = new THREE.SphereGeometry(2.5, 16, 16);
+
+                        let particle = cascadeParticles[stepIdx];
+                        if (!particle) {
+                            const geom = new THREE.SphereGeometry(2.4, 14, 14);
                             const mat = new THREE.MeshBasicMaterial({ color: step.color, emissive: step.color });
-                            cascadeParticle = new THREE.Mesh(geom, mat);
-                            scene.add(cascadeParticle);
-                            cascadeParticles[stepIdx] = cascadeParticle;
+                            particle = new THREE.Mesh(geom, mat);
+                            scene.add(particle);
+                            cascadeParticles[stepIdx] = particle;
                         }
-                        
-                        cascadeParticle.position.lerpVectors(from.position, to.position, progress);
-                        cascadeParticle.scale.set(
-                            0.8 + Math.sin(progress * Math.PI) * 0.4,
-                            0.8 + Math.sin(progress * Math.PI) * 0.4,
-                            0.8 + Math.sin(progress * Math.PI) * 0.4
-                        );
-                        cascadeParticle.visible = true;
-                        
-                        // Highlight cells in cascade
-                        from.material.emissiveIntensity = 0.7;
-                        to.material.emissiveIntensity = 0.7;
+                        particle.visible = true;
+                        particle.position.lerpVectors(from.position, to.position, progress);
+                        particle.scale.set(0.8 + Math.sin(progress * Math.PI) * 0.4, 0.8 + Math.sin(progress * Math.PI) * 0.4, 0.8 + Math.sin(progress * Math.PI) * 0.4);
+                        from.material.emissiveIntensity = 0.8;
+                        to.material.emissiveIntensity = 0.8;
                     } else if (cascadeParticles[stepIdx]) {
                         cascadeParticles[stepIdx].visible = false;
                     }
                 });
             }
-            
-            // Regular signal particles
-            particles.forEach(p => {
-                if (showSignals) {
-                    p.userData.progress += 0.005;
-                    if (p.userData.progress > 1) {
-                        p.userData.progress = 0;
-                    }
-                    
+
+            if (showSignals) {
+                particles.forEach((p) => {
+                    p.userData.progress += 0.006;
+                    if (p.userData.progress > 1) p.userData.progress = 0;
                     const from = cellMeshes[p.userData.from];
                     const to = cellMeshes[p.userData.to];
                     const progress = (p.userData.progress + p.userData.delay) % 1;
-                    
                     p.position.lerpVectors(from.position, to.position, progress);
-                    p.scale.set(
-                        1 + Math.sin(time * 3) * 0.3,
-                        1 + Math.sin(time * 3) * 0.3,
-                        1 + Math.sin(time * 3) * 0.3
-                    );
+                    p.scale.set(1 + Math.sin(time * 4) * 0.3, 1 + Math.sin(time * 4) * 0.3, 1 + Math.sin(time * 4) * 0.3);
                     p.visible = true;
-                } else {
-                    p.visible = false;
-                }
-            });
-            
-            // Update line opacity
+                });
+            } else {
+                particles.forEach((p) => p.visible = false);
+            }
+
             lineSegments.forEach((seg, i) => {
-                const opacity = 0.2 + 0.3 * Math.sin(time + i * 0.5);
+                const opacity = 0.18 + 0.24 * Math.sin(time + i * 0.8);
                 seg.line.material.opacity = opacity;
             });
-            
+
             renderer.render(scene, camera);
-        };
-        
+        }
+
         animate();
     </script>
 </body>
